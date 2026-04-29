@@ -45,7 +45,9 @@ def _get_config(experiment: str, **kwargs):
 
 def _get_model_class(key):
     print("_get_model_class: key",key)
-    if 'maevit_infonce_plm' in key:
+    if 'slp_mdiff' in key:
+        from .slp_mdiff.system import Model as ModelClass
+    elif 'maevit_infonce_plm' in key:
         from .maevit_infonce_plm.system import Model as ModelClass        
     elif 'maevit_plm' in key:
         from .maevit_plm.system import Model as ModelClass     

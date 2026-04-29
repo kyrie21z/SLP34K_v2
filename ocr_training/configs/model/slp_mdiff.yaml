@@ -1,0 +1,45 @@
+name: slp_mdiff
+_target_: strhub.models.slp_mdiff.system.Model
+
+# model
+img_size: [224, 224]
+max_label_length: 50
+charset_train: ${charset}
+charset_test: ${charset}
+embed_dim: 768
+mae_pretrained_path: pretrain_model/ship/224x224_pretrain_ship_vit_checkpoint-1499.pth
+
+# MDiff decoder
+decoder_core: official
+mdiff_depth: 6
+mdiff_num_heads: 12
+mdiff_mlp_ratio: 4.0
+mdiff_dropout: 0.1
+
+# Denoising
+denoise_steps: 3
+inference_mode: parallel
+mask_ratio: 0.5
+mask_strategy: random_or_full
+loss_mode: official_masked_normalized
+
+# Visual adapter
+use_visual_adapter: true
+# V2-M02h-fix conditioning interface options.
+drop_cls_token: false
+# allowed: identity, layernorm, linear_ln
+visual_adapter_type: identity
+cross_attn_gate: false
+cross_attn_gate_init: 1.0
+
+# Disabled in V2-M02
+use_infonce_aux: false
+infonce_weight: 0.0
+
+# Encoder init
+freeze_encoder: true
+init_encoder_from_baseline_ckpt: true
+baseline_ckpt_path: checkpoint/SLP34K_maevit_infonce_plm_SOTA_83.53%/checkpoints/last.ckpt
+
+# Training
+lr: 8.4e-5
