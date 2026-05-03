@@ -1,0 +1,26 @@
+name: slp_mdiff_corrector
+_target_: strhub.models.slp_mdiff_corrector.system.Model
+
+max_label_length: 50
+charset_train: ${charset}
+charset_test: ${charset}
+
+contract_type: token_decoder_hidden
+use_encoder_memory: false
+replace_only: true
+
+embed_dim: 768
+hidden_dim: 768
+num_layers: 4
+num_heads: 12
+dropout: 0.1
+
+loss_type: selected_plus_preservation
+lambda_preservation: 0.2
+
+tau_low: 0.70
+tau_corr: 0.80
+tau_keep: 0.90
+delta_gain: 0.05
+
+lr: 1.0e-4

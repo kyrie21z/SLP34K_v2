@@ -16,7 +16,7 @@
 import math
 from functools import partial
 from itertools import permutations
-from typing import Sequence, Any, Optional
+from typing import Sequence, Any, Optional, Dict
 
 import numpy as np
 import torch
@@ -290,8 +290,14 @@ class Model(CrossEntropySystem):
         tgt_query = self.dropout(tgt_query)#B*T*768
         return self.decoder(query=tgt_query, content=tgt_emb, memory=memory, query_mask=tgt_query_mask, content_mask=tgt_mask, content_key_padding_mask=tgt_padding_mask)
    
-        
-    def forward(self, images, max_length: Optional[int] = None) -> Tensor:
+    def forward_with_aux(
+        self,
+        images,
+        max_length: Optional[int] = None,
+        return_memory: bool = False,
+        return_hidden: bool = False,
+        return_token_ids: bool = False,
+    ) -> Dict[str, Tensor]:
         testing = max_length is None
         max_length = self.max_label_length if max_length is None else min(max_length, self.max_label_length) #25
         bs = images.shape[0]
@@ -305,12 +311,14 @@ class Model(CrossEntropySystem):
 
         # Special case for the forward permutation. Faster than using `generate_attn_masks()`
         tgt_mask = query_mask = torch.triu(torch.ones((num_steps, num_steps), dtype=torch.bool, device=self._device), 1)
+        decoder_hidden = None
 
         if self.decode_ar:
             tgt_in = torch.full((bs, num_steps), self.tokenizer.pad_id, dtype=torch.long, device=self._device)
             tgt_in[:, 0] = self.tokenizer.bos_id
 
             logits = []
+            hidden_steps = [] if return_hidden else None
             for i in range(num_steps):
                 j = i + 1  # next token index
                 # Efficient decoding:
@@ -327,6 +335,8 @@ class Model(CrossEntropySystem):
                 # the next token probability is in the output's ith token position
                 p_i = self.head(tgt_out)
                 logits.append(p_i)
+                if hidden_steps is not None:
+                    hidden_steps.append(tgt_out)
                 if j < num_steps:
                     # greedy decode. add the next token index to the target input
                     tgt_in[:, j] = p_i.squeeze().argmax(-1)
@@ -336,11 +346,15 @@ class Model(CrossEntropySystem):
                         break
             t = len(logits)                
             logits = torch.cat(logits, dim=1)
+            if hidden_steps is not None:
+                decoder_hidden = torch.cat(hidden_steps, dim=1)
         else:
             # No prior context, so input is just <bos>. We query all positions.
             tgt_in = torch.full((bs, 1), self.tokenizer.bos_id, dtype=torch.long, device=self._device)
             tgt_out = self.decode(tgt_in, memory, tgt_query=pos_queries)
             logits = self.head(tgt_out)
+            if return_hidden:
+                decoder_hidden = tgt_out
 
         if self.refine_iters:
             # For iterative refinement, we always use a 'cloze' mask.
@@ -358,8 +372,24 @@ class Model(CrossEntropySystem):
                     tgt_in, memory, tgt_mask, tgt_padding_mask, pos_queries, query_mask[:, : tgt_in.shape[1]]
                 )
                 logits = self.head(tgt_out)
+            if return_hidden:
+                decoder_hidden = tgt_out
 
-        return logits
+        outputs = {"logits": logits}
+        if return_token_ids:
+            probs = logits.softmax(-1)
+            pred_token_conf, pred_token_ids = probs.max(-1)
+            outputs["pred_token_ids"] = pred_token_ids
+            outputs["pred_token_conf"] = pred_token_conf
+        if return_memory:
+            outputs["encoder_memory"] = memory
+        if return_hidden:
+            outputs["decoder_hidden"] = decoder_hidden
+        return outputs
+
+        
+    def forward(self, images, max_length: Optional[int] = None) -> Tensor:
+        return self.forward_with_aux(images, max_length=max_length)["logits"]
         
 
     def gen_tgt_perms(self, tgt):
