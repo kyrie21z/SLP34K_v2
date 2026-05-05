@@ -153,3 +153,15 @@ cython_debug/
 .idea/
 
 .codex
+
+SLP34K/
+
+SLP34K.zip
+
+experiments/dit_lq_hq_v1/*
+!experiments/dit_lq_hq_v1/scripts/
+!experiments/dit_lq_hq_v1/scripts/**
+experiments/dit_lq_hq_v1/scripts/__pycache__/
+experiments/dit_lq_hq_v1/scripts/**/*.py[cod]
+!experiments/dit_lq_hq_v1/reports/
+!experiments/dit_lq_hq_v1/reports/**
